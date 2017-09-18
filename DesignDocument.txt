@@ -1,0 +1,58 @@
+
+Lab 6 Design Document for Team_Commit and Team chtod_sqrt_sam
+
+Hardware:
+Implement six new opcodes
+E 0 0 0 will take the contents of two “secret save” registers (flags and program counter) and place them in registers 10 and 11
+E 0 0 1 will take the contents of registers 10 and 11 (flags and program counter) and place them in two different “secret load” registers
+E 0 0 2 will actually start the new thread once the switch has finished loading in its initial status. This op code replaces RTI in this implementation.
+E 0 0 4 will disable ISR while the program first creates the threads.
+E 0 0 5 will re-enable ISR once the program has finished creating the threads.
+E 0 0 6 will take from register 1 the location of the Thread Switch ISR
+When switching between threads....
+Jump to PC location defined by opcode E 0 0 6 to run ThreadSwitchRoutine
+Save the current flags to a “secret” register
+Save the program counter to a “secret” register
+Load the new flags from a “secret” register into hardware
+Load the program counter from a “secret” register into hardware
+Create a counter that triggers from the clock to count to 100. When it reaches 100, send the message to switch threads. It only increments while within a thread.
+It will access some memory location “next_thread” to know which thread to load
+Whenever there is a thread switch we push the program counter to E4 which is the start of the thread switch routine. 
+Each thread only has 97 memory cells allocated for use.
+
+
+
+Software:
+When switching between threads…
+Save the state of the current thread to its allocated chunk in memory (thread 1 takes up memory locations 1 to 17, 2 takes up memory locations 18 to 35, etc…)
+Save ALL of the registers
+Use an opcode (E 0 0 0) to take flags and program counter from a second set of registers and place them in registers 10 (program counter) and 11 (flags)
+Save those 2 registers again
+Note that this process needs 3 spots in memory to store some temporary data. It uses the current thread’s stack pointer to do this, so threads actually have three spaces less than allocated to them.
+Find the next thread to start by checking all the threads from current thread
+When finding this thread, make sure that it has been started, ie. the boolean for that thread has been set to true
+Set the value of current thread to the found thread.
+Load in the state of the next thread to be run
+Load program counter and flags into registers 10 (program counter) and 11 (flags)
+Use an opcode (E 0 0 1) to load them into a second set of registers
+Load ALL of the registers
+Use an opcode (E 0 0 2) to actually begin the next thread
+When creating new threads…
+Disable the “SafeToSwitch” flag to turn of the ISR
+Create a new location for the SP and FP, in our program these are created 100 memory cells apart, which means each thread has access to 97 memory cells.
+Starting the thread is really just initializing all of the values of the registers, flags, and program counter. In addition, the boolean indicating that the thread is “active” must be flipped to true in the thread switching table.
+Enable the “SafeToSwitch” flag to turn of the ISR
+Killing Threads
+A thread can terminate itself by branching to kill_this
+This deactivates the boolean for the thread and then halts
+Threads can disable other threads by changing the boolean in the thread_table
+If all threads have been disabled then the program enters an infinite loop on the next thread switch
+Software sets a maximum of 8 threads starting with thread 0
+Test Program
+Sets the beginning of the Thread Switch ISR using an opcode (E 0 0 6)
+The test program initializes 8 threads, all of which count to 100.
+Thread 0 counts in R1, thread 1 in R2, etc. 
+Thread 3 loops loading and storing several registers so as to check that a thread switch doesn’t interfere
+Thread 7 kills thread 0 to demonstrate how any thread can disable other threads
+When all threads are killed the program gets stuck in an infinite loop, effectively halting
+
